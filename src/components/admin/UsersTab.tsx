@@ -3,10 +3,17 @@ import { collection, query, onSnapshot, doc, updateDoc, deleteDoc, getDocs, wher
 import { db } from '../../firebase';
 import { handleFirestoreError, OperationType } from '../../utils/firestoreErrorHandler';
 import { Shield, ShieldAlert, Trash2 } from 'lucide-react';
+import ConfirmModal from '../ConfirmModal';
 
 export default function UsersTab() {
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [confirmAction, setConfirmAction] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => void;
+  }>({ isOpen: false, title: '', message: '', onConfirm: () => {} });
 
   useEffect(() => {
     const q = query(collection(db, 'users'));
@@ -21,33 +28,44 @@ export default function UsersTab() {
   }, []);
 
   const toggleRole = async (user: any) => {
-    if (window.confirm(`Change role for ${user.email} to ${user.role === 'Admin' ? 'User' : 'Admin'}?`)) {
-      try {
-        await updateDoc(doc(db, 'users', user.id), {
-          role: user.role === 'Admin' ? 'User' : 'Admin'
-        });
-      } catch (error) {
-        handleFirestoreError(error, OperationType.UPDATE, `users/${user.id}`);
+    setConfirmAction({
+      isOpen: true,
+      title: 'Change User Role',
+      message: `Change role for ${user.email} to ${user.role === 'Admin' ? 'User' : 'Admin'}?`,
+      onConfirm: async () => {
+        try {
+          await updateDoc(doc(db, 'users', user.id), {
+            role: user.role === 'Admin' ? 'User' : 'Admin'
+          });
+        } catch (error) {
+          handleFirestoreError(error, OperationType.UPDATE, `users/${user.id}`);
+        }
       }
-    }
+    });
   };
 
   const resetUserAnswers = async (userId: string) => {
-    if (window.confirm('Are you sure you want to delete all progress for this user?')) {
-      try {
-        const q = query(collection(db, 'userProgress'), where('userId', '==', userId));
-        const snapshot = await getDocs(q);
-        
-        const deletePromises = snapshot.docs.map(docSnapshot => 
-          deleteDoc(doc(db, 'userProgress', docSnapshot.id))
-        );
-        
-        await Promise.all(deletePromises);
-        alert('User progress reset successfully.');
-      } catch (error) {
-        handleFirestoreError(error, OperationType.DELETE, 'userProgress');
+    setConfirmAction({
+      isOpen: true,
+      title: 'Reset User Progress',
+      message: 'Are you sure you want to delete all progress for this user? This action cannot be undone.',
+      onConfirm: async () => {
+        try {
+          const q = query(collection(db, 'userProgress'), where('userId', '==', userId));
+          const snapshot = await getDocs(q);
+          
+          const deletePromises = snapshot.docs.map(docSnapshot => 
+            deleteDoc(doc(db, 'userProgress', docSnapshot.id))
+          );
+          
+          await Promise.all(deletePromises);
+          // Replaced alert with console.log or toast if available
+          console.log('User progress reset successfully.');
+        } catch (error) {
+          handleFirestoreError(error, OperationType.DELETE, 'userProgress');
+        }
       }
-    }
+    });
   };
 
   if (loading) return <div>Loading users...</div>;
@@ -107,6 +125,14 @@ export default function UsersTab() {
           </tbody>
         </table>
       </div>
+
+      <ConfirmModal
+        isOpen={confirmAction.isOpen}
+        title={confirmAction.title}
+        message={confirmAction.message}
+        onConfirm={confirmAction.onConfirm}
+        onCancel={() => setConfirmAction(prev => ({ ...prev, isOpen: false }))}
+      />
     </div>
   );
 }

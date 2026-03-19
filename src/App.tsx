@@ -10,6 +10,7 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import Login from './pages/Login';
 import AdminDashboard from './pages/AdminDashboard';
 import MapView from './pages/MapView';
+import MapSelection from './pages/MapSelection';
 
 const ProtectedRoute = ({ children, requireAdmin = false }: { children: React.ReactNode, requireAdmin?: boolean }) => {
   const { user, userProfile, loading } = useAuth();
@@ -27,7 +28,7 @@ const ProtectedRoute = ({ children, requireAdmin = false }: { children: React.Re
   }
 
   if (requireAdmin && userProfile.role !== 'Admin') {
-    return <Navigate to={`/map/Map 1`} replace />;
+    return <Navigate to={`/maps`} replace />;
   }
 
   return <>{children}</>;
@@ -45,6 +46,14 @@ export default function App() {
               element={
                 <ProtectedRoute requireAdmin={true}>
                   <AdminDashboard />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/maps" 
+              element={
+                <ProtectedRoute>
+                  <MapSelection />
                 </ProtectedRoute>
               } 
             />

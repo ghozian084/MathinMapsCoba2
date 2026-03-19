@@ -39,14 +39,28 @@ export default function TaskSidebar({ mapName, point, onClose }: TaskSidebarProp
         }
 
         // Fetch Tasks
-        const q = query(
-          collection(db, 'taskSets'),
-          where('pointId', '==', point.id)
-        );
-        const snapshot = await getDocs(q);
-        if (!snapshot.empty) {
-          const taskSet = snapshot.docs[0].data();
-          setTasks(taskSet.tasks || []);
+        let taskSetData = null;
+
+        if (point.taskSetId) {
+          const taskSetDoc = await getDoc(doc(db, 'taskSets', point.taskSetId));
+          if (taskSetDoc.exists()) {
+            taskSetData = taskSetDoc.data();
+          }
+        }
+
+        if (!taskSetData) {
+          const q = query(
+            collection(db, 'taskSets'),
+            where('pointId', '==', point.id)
+          );
+          const snapshot = await getDocs(q);
+          if (!snapshot.empty) {
+            taskSetData = snapshot.docs[0].data();
+          }
+        }
+
+        if (taskSetData) {
+          setTasks(taskSetData.tasks || []);
         }
       } catch (error) {
         handleFirestoreError(error, OperationType.GET, 'taskSets/settings');

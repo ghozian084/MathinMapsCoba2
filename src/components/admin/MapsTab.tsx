@@ -2,17 +2,20 @@ import React, { useState, useEffect } from 'react';
 import { collection, query, onSnapshot, doc, deleteDoc, setDoc, updateDoc } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { handleFirestoreError, OperationType } from '../../utils/firestoreErrorHandler';
-import { Plus, Edit, Trash2 } from 'lucide-react';
+import { Plus, Edit, Trash2, Image as ImageIcon } from 'lucide-react';
+import ConfirmModal from '../ConfirmModal';
 
 export default function MapsTab() {
   const [maps, setMaps] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingMap, setEditingMap] = useState<any | null>(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   
   const [formData, setFormData] = useState({
     name: '',
-    description: ''
+    description: '',
+    imageUrl: ''
   });
 
   useEffect(() => {
@@ -38,19 +41,20 @@ export default function MapsTab() {
       }
       setIsModalOpen(false);
       setEditingMap(null);
-      setFormData({ name: '', description: '' });
+      setFormData({ name: '', description: '', imageUrl: '' });
     } catch (error) {
       handleFirestoreError(error, editingMap ? OperationType.UPDATE : OperationType.CREATE, 'maps');
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (window.confirm('Are you sure you want to delete this map?')) {
+  const handleDelete = async () => {
+    if (deleteConfirmId) {
       try {
-        await deleteDoc(doc(db, 'maps', id));
+        await deleteDoc(doc(db, 'maps', deleteConfirmId));
       } catch (error) {
-        handleFirestoreError(error, OperationType.DELETE, `maps/${id}`);
+        handleFirestoreError(error, OperationType.DELETE, `maps/${deleteConfirmId}`);
       }
+      setDeleteConfirmId(null);
     }
   };
 
@@ -58,7 +62,8 @@ export default function MapsTab() {
     setEditingMap(mapObj);
     setFormData({
       name: mapObj.name || '',
-      description: mapObj.description || ''
+      description: mapObj.description || '',
+      imageUrl: mapObj.imageUrl || ''
     });
     setIsModalOpen(true);
   };
@@ -72,7 +77,7 @@ export default function MapsTab() {
         <button
           onClick={() => {
             setEditingMap(null);
-            setFormData({ name: '', description: '' });
+            setFormData({ name: '', description: '', imageUrl: '' });
             setIsModalOpen(true);
           }}
           className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors"
@@ -85,6 +90,7 @@ export default function MapsTab() {
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Image</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
@@ -93,13 +99,22 @@ export default function MapsTab() {
           <tbody className="bg-white divide-y divide-gray-200">
             {maps.map((mapObj) => (
               <tr key={mapObj.id}>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  {mapObj.imageUrl ? (
+                    <img src={mapObj.imageUrl} alt={mapObj.name} className="h-10 w-10 rounded object-cover" referrerPolicy="no-referrer" />
+                  ) : (
+                    <div className="h-10 w-10 rounded bg-gray-100 flex items-center justify-center text-gray-400">
+                      <ImageIcon className="h-5 w-5" />
+                    </div>
+                  )}
+                </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{mapObj.name}</td>
                 <td className="px-6 py-4 text-sm text-gray-500">{mapObj.description}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                   <button onClick={() => openEditModal(mapObj)} className="text-indigo-600 hover:text-indigo-900 mr-4">
                     <Edit className="h-4 w-4" />
                   </button>
-                  <button onClick={() => handleDelete(mapObj.id)} className="text-red-600 hover:text-red-900">
+                  <button onClick={() => setDeleteConfirmId(mapObj.id)} className="text-red-600 hover:text-red-900">
                     <Trash2 className="h-4 w-4" />
                   </button>
                 </td>
@@ -108,6 +123,14 @@ export default function MapsTab() {
           </tbody>
         </table>
       </div>
+
+      <ConfirmModal
+        isOpen={!!deleteConfirmId}
+        title="Delete Map"
+        message="Are you sure you want to delete this map? This action cannot be undone."
+        onConfirm={handleDelete}
+        onCancel={() => setDeleteConfirmId(null)}
+      />
 
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
@@ -121,6 +144,16 @@ export default function MapsTab() {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
                 <textarea rows={3} value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} className="w-full p-2 border rounded"></textarea>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Image URL</label>
+                <input type="url" value={formData.imageUrl} onChange={e => setFormData({...formData, imageUrl: e.target.value})} placeholder="https://example.com/image.jpg" className="w-full p-2 border rounded" />
+                {formData.imageUrl && (
+                  <div className="mt-2">
+                    <p className="text-xs text-gray-500 mb-1">Preview:</p>
+                    <img src={formData.imageUrl} alt="Preview" className="h-32 object-cover rounded border" referrerPolicy="no-referrer" />
+                  </div>
+                )}
               </div>
               
               <div className="flex justify-end gap-3 mt-6">

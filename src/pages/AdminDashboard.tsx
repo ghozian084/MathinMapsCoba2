@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { Map, MapPin, CheckSquare, Users, Activity, LogOut, Settings } from 'lucide-react';
+import { Map, MapPin, CheckSquare, Users, Activity, LogOut, Settings, Eye } from 'lucide-react';
 import MapsTab from '../components/admin/MapsTab';
 import MapPointsTab from '../components/admin/MapPointsTab';
 import TaskSetsTab from '../components/admin/TaskSetsTab';
@@ -58,7 +58,14 @@ export default function AdminDashboard() {
             </button>
           ))}
         </nav>
-        <div className="p-4 border-t border-gray-200">
+        <div className="p-4 border-t border-gray-200 space-y-2">
+          <button
+            onClick={() => navigate('/maps')}
+            className="w-full flex items-center gap-3 px-4 py-3 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+          >
+            <Eye className="h-5 w-5" />
+            Student View
+          </button>
           <button
             onClick={handleLogout}
             className="w-full flex items-center gap-3 px-4 py-3 text-red-600 hover:bg-red-50 rounded-lg transition-colors"

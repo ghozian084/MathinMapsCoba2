@@ -6,6 +6,7 @@ import { Plus, Edit, Trash2 } from 'lucide-react';
 import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
+import ConfirmModal from '../ConfirmModal';
 
 // Fix for default marker icons in react-leaflet
 import icon from 'leaflet/dist/images/marker-icon.png';
@@ -35,6 +36,7 @@ export default function MapPointsTab() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingPoint, setEditingPoint] = useState<any | null>(null);
   const [imageUploading, setImageUploading] = useState(false);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   
   const [formData, setFormData] = useState({
     mapName: '',
@@ -116,13 +118,14 @@ export default function MapPointsTab() {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (window.confirm('Are you sure you want to delete this point?')) {
+  const handleDelete = async () => {
+    if (deleteConfirmId) {
       try {
-        await deleteDoc(doc(db, 'mapPoints', id));
+        await deleteDoc(doc(db, 'mapPoints', deleteConfirmId));
       } catch (error) {
-        handleFirestoreError(error, OperationType.DELETE, `mapPoints/${id}`);
+        handleFirestoreError(error, OperationType.DELETE, `mapPoints/${deleteConfirmId}`);
       }
+      setDeleteConfirmId(null);
     }
   };
 
@@ -186,7 +189,7 @@ export default function MapPointsTab() {
                   <button onClick={() => openEditModal(point)} className="text-indigo-600 hover:text-indigo-900 mr-4">
                     <Edit className="h-4 w-4" />
                   </button>
-                  <button onClick={() => handleDelete(point.id)} className="text-red-600 hover:text-red-900">
+                  <button onClick={() => setDeleteConfirmId(point.id)} className="text-red-600 hover:text-red-900">
                     <Trash2 className="h-4 w-4" />
                   </button>
                 </td>
@@ -195,6 +198,14 @@ export default function MapPointsTab() {
           </tbody>
         </table>
       </div>
+
+      <ConfirmModal
+        isOpen={!!deleteConfirmId}
+        title="Delete Point"
+        message="Are you sure you want to delete this map point? This action cannot be undone."
+        onConfirm={handleDelete}
+        onCancel={() => setDeleteConfirmId(null)}
+      />
 
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">

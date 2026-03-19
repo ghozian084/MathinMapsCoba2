@@ -3,6 +3,7 @@ import { collection, query, onSnapshot, doc, updateDoc, setDoc, deleteDoc } from
 import { db, auth } from '../../firebase';
 import { handleFirestoreError, OperationType } from '../../utils/firestoreErrorHandler';
 import { Plus, Edit, Trash2, X } from 'lucide-react';
+import ConfirmModal from '../ConfirmModal';
 
 const PREDEFINED_TOOLS = ['Measuring Tape', 'Ruler', 'Clinometer'];
 
@@ -13,6 +14,7 @@ export default function TaskSetsTab() {
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTaskSet, setEditingTaskSet] = useState<any | null>(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   
   const [formData, setFormData] = useState({
     mapName: '',
@@ -83,13 +85,14 @@ export default function TaskSetsTab() {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (window.confirm('Are you sure you want to delete this task set?')) {
+  const handleDelete = async () => {
+    if (deleteConfirmId) {
       try {
-        await deleteDoc(doc(db, 'taskSets', id));
+        await deleteDoc(doc(db, 'taskSets', deleteConfirmId));
       } catch (error) {
-        handleFirestoreError(error, OperationType.DELETE, `taskSets/${id}`);
+        handleFirestoreError(error, OperationType.DELETE, `taskSets/${deleteConfirmId}`);
       }
+      setDeleteConfirmId(null);
     }
   };
 
@@ -190,7 +193,7 @@ export default function TaskSetsTab() {
                   <button onClick={() => openEditModal(ts)} className="text-indigo-600 hover:text-indigo-900 mr-4">
                     <Edit className="h-4 w-4" />
                   </button>
-                  <button onClick={() => handleDelete(ts.id)} className="text-red-600 hover:text-red-900">
+                  <button onClick={() => setDeleteConfirmId(ts.id)} className="text-red-600 hover:text-red-900">
                     <Trash2 className="h-4 w-4" />
                   </button>
                 </td>
@@ -199,6 +202,14 @@ export default function TaskSetsTab() {
           </tbody>
         </table>
       </div>
+
+      <ConfirmModal
+        isOpen={!!deleteConfirmId}
+        title="Delete Task Set"
+        message="Are you sure you want to delete this task set? This action cannot be undone."
+        onConfirm={handleDelete}
+        onCancel={() => setDeleteConfirmId(null)}
+      />
 
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">

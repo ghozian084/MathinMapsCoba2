@@ -12,7 +12,7 @@ export default function Login() {
       if (userProfile.role === 'Admin') {
         navigate('/admin/dashboard');
       } else {
-        navigate('/map/Map 1');
+        navigate('/maps');
       }
     }
   }, [user, userProfile, navigate]);

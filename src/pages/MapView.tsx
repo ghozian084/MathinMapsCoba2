@@ -4,7 +4,7 @@ import { MapContainer, TileLayer, Marker } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import { useAuth } from '../contexts/AuthContext';
-import { LogOut } from 'lucide-react';
+import { LogOut, ArrowLeft } from 'lucide-react';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { db } from '../firebase';
 import { handleFirestoreError, OperationType } from '../utils/firestoreErrorHandler';
@@ -53,7 +53,15 @@ export default function MapView() {
     <div className="h-screen w-full flex flex-col relative">
       {/* Header */}
       <header className="absolute top-0 left-0 right-0 z-10 bg-white/90 backdrop-blur-sm shadow-sm p-4 flex justify-between items-center">
-        <h1 className="text-xl font-bold text-indigo-600">MathInMaps: {mapName}</h1>
+        <div className="flex items-center gap-4">
+          <button
+            onClick={() => navigate('/maps')}
+            className="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-md transition-colors"
+          >
+            <ArrowLeft className="h-4 w-4" /> Back to Maps
+          </button>
+          <h1 className="text-xl font-bold text-indigo-600">MathInMaps: {mapName}</h1>
+        </div>
         <div className="flex items-center gap-4">
           <span className="text-sm text-gray-600 font-medium">Welcome, {userProfile?.displayName}</span>
           <button
