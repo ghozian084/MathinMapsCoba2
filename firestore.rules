@@ -1,0 +1,161 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    function isAdmin() {
+      return isAuthenticated() && (
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin' ||
+        (request.auth.token.email == "ziankafi17@gmail.com" && request.auth.token.email_verified == true)
+      );
+    }
+    
+    function uidUnchanged() {
+      return !('uid' in request.resource.data) || request.resource.data.uid == request.auth.uid;
+    }
+    
+    function uidNotModified() {
+      return !('uid' in request.resource.data) || request.resource.data.uid == resource.data.uid;
+    }
+    
+    function hasRequiredFields(fields) {
+      return request.resource.data.keys().hasAll(fields);
+    }
+    
+    function isValidEmail(email) {
+      return email is string && email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+    
+    function isValidUser(data) {
+      return data.keys().hasAll(['uid', 'email', 'role']) &&
+             data.uid is string && data.uid.size() > 0 && data.uid.size() < 100 &&
+             data.email is string && isValidEmail(data.email) && data.email.size() < 100 &&
+             data.role in ['Admin', 'User'] &&
+             (!('displayName' in data) || (data.displayName is string && data.displayName.size() < 100)) &&
+             (!('photoURL' in data) || (data.photoURL is string && data.photoURL.size() < 500));
+    }
+    
+    function isValidMap(data) {
+      return data.keys().hasAll(['id', 'name']) &&
+             data.id is string && data.id.size() > 0 && data.id.size() < 100 &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             (!('description' in data) || (data.description is string && data.description.size() < 2000)) &&
+             (!('createdAt' in data) || data.createdAt is number);
+    }
+    
+    function isValidMapPoint(data) {
+      return data.keys().hasAll(['id', 'mapName', 'latitude', 'longitude', 'title', 'taskSetId']) &&
+             data.id is string && data.id.size() > 0 && data.id.size() < 100 &&
+             data.mapName is string && data.mapName.size() > 0 && data.mapName.size() < 100 &&
+             data.latitude is number && data.longitude is number &&
+             data.title is string && data.title.size() > 0 && data.title.size() < 200 &&
+             data.taskSetId is string && data.taskSetId.size() < 100 &&
+             (!('description' in data) || (data.description is string && data.description.size() < 2000)) &&
+             (!('pointImageUrl' in data) || (data.pointImageUrl is string && data.pointImageUrl.size() < 2000000)); // Allow up to ~2MB base64 string
+    }
+    
+    function isValidTaskSet(data) {
+      return data.keys().hasAll(['id', 'mapName', 'pointId', 'tasks']) &&
+             data.id is string && data.id.size() > 0 && data.id.size() < 100 &&
+             data.mapName is string && data.mapName.size() > 0 && data.mapName.size() < 100 &&
+             data.pointId is string && data.pointId.size() < 100 &&
+             data.tasks is list && data.tasks.size() <= 20;
+    }
+    
+    function isValidMapConnection(data) {
+      return data.keys().hasAll(['id', 'mapName', 'startPointId', 'endPointId']) &&
+             data.id is string && data.id.size() > 0 && data.id.size() < 100 &&
+             data.mapName is string && data.mapName.size() > 0 && data.mapName.size() < 100 &&
+             data.startPointId is string && data.startPointId.size() > 0 && data.startPointId.size() < 100 &&
+             data.endPointId is string && data.endPointId.size() > 0 && data.endPointId.size() < 100 &&
+             (!('connectionType' in data) || (data.connectionType is string && data.connectionType.size() < 100));
+    }
+    
+    function isValidUserProgress(data) {
+      return data.keys().hasAll(['id', 'userId', 'taskSetId', 'taskNumber', 'isCorrect', 'timestamp']) &&
+             data.id is string && data.id.size() > 0 && data.id.size() < 100 &&
+             data.userId is string && data.userId.size() > 0 && data.userId.size() < 100 &&
+             data.taskSetId is string && data.taskSetId.size() > 0 && data.taskSetId.size() < 100 &&
+             data.taskNumber is number &&
+             data.isCorrect is bool &&
+             data.timestamp is number &&
+             (!('userAnswer' in data) || true) && // Can be string or object (for drag and drop)
+             (!('aiFeedback' in data) || (data.aiFeedback is string && data.aiFeedback.size() <= 5000)) &&
+             (!('isPartial' in data) || data.isPartial is bool);
+    }
+
+    function isValidSettings(data) {
+      return (!('feedbackMessages' in data) || data.feedbackMessages is map) &&
+             (!('mapStyles' in data) || data.mapStyles is string);
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+    
+    match /settings/{document=**} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+    
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+      // Users can create their own profile, but cannot set themselves as Admin unless they are the default admin
+      allow create: if isAuthenticated() && isValidUser(request.resource.data) && uidUnchanged() && 
+                    ((isOwner(userId) && request.resource.data.role == 'User') || isAdmin());
+      allow update: if isAuthenticated() && isValidUser(request.resource.data) && uidNotModified() && 
+                    ((isOwner(userId) && request.resource.data.role == resource.data.role) || isAdmin());
+      allow delete: if isAdmin();
+    }
+    
+    match /maps/{mapId} {
+      allow read: if isAuthenticated();
+      allow create: if isAdmin() && isValidMap(request.resource.data);
+      allow update: if isAdmin() && isValidMap(request.resource.data);
+      allow delete: if isAdmin();
+    }
+    
+    match /mapPoints/{pointId} {
+      allow read: if isAuthenticated();
+      allow create: if isAdmin() && isValidMapPoint(request.resource.data);
+      allow update: if isAdmin() && isValidMapPoint(request.resource.data);
+      allow delete: if isAdmin();
+    }
+    
+    match /taskSets/{taskSetId} {
+      allow read: if isAuthenticated();
+      allow create: if isAdmin() && isValidTaskSet(request.resource.data);
+      allow update: if isAdmin() && isValidTaskSet(request.resource.data);
+      allow delete: if isAdmin();
+    }
+    
+    match /mapConnections/{connectionId} {
+      allow read: if isAuthenticated();
+      allow create: if isAdmin() && isValidMapConnection(request.resource.data);
+      allow update: if isAdmin() && isValidMapConnection(request.resource.data);
+      allow delete: if isAdmin();
+    }
+    
+    match /userProgress/{progressId} {
+      allow read: if isAuthenticated() && (request.auth.uid == resource.data.userId || isAdmin());
+      allow create: if isAuthenticated() && isValidUserProgress(request.resource.data) && 
+                    request.resource.data.userId == request.auth.uid;
+      allow update: if isAuthenticated() && isValidUserProgress(request.resource.data) && 
+                    request.resource.data.userId == resource.data.userId &&
+                    request.resource.data.userId == request.auth.uid;
+      allow delete: if isAdmin();
+    }
+  }
+}

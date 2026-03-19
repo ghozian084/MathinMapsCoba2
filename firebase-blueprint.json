@@ -1,0 +1,111 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "A user of the application",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "The user's Firebase Auth UID" },
+        "email": { "type": "string", "format": "email", "description": "The user's email address" },
+        "role": { "type": "string", "enum": ["Admin", "User"], "description": "The user's role" },
+        "displayName": { "type": "string", "description": "The user's display name" },
+        "photoURL": { "type": "string", "description": "The user's profile photo URL" }
+      },
+      "required": ["uid", "email", "role"]
+    },
+    "MapPoint": {
+      "title": "MapPoint",
+      "description": "A point on the map",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "mapName": { "type": "string" },
+        "latitude": { "type": "number" },
+        "longitude": { "type": "number" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "pointImageUrl": { "type": "string" },
+        "taskSetId": { "type": "string" }
+      },
+      "required": ["id", "mapName", "latitude", "longitude", "title", "taskSetId"]
+    },
+    "TaskSet": {
+      "title": "TaskSet",
+      "description": "A set of tasks for a map point",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "mapName": { "type": "string" },
+        "pointId": { "type": "string" },
+        "tasks": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "taskNumber": { "type": "number" },
+              "question": { "type": "string" },
+              "taskImageUrl": { "type": "string" },
+              "objectDescription": { "type": "string" },
+              "hintText": { "type": "string" },
+              "taskType": { "type": "string", "enum": ["Short Answer", "Multiple Choice", "Interval", "Drag-and-Drop"] },
+              "answerCriteria": { "type": "object" },
+              "difficulty": { "type": "string", "enum": ["Easy", "Medium", "Hard"] }
+            },
+            "required": ["taskNumber", "question", "taskType", "answerCriteria", "difficulty"]
+          }
+        }
+      },
+      "required": ["id", "mapName", "pointId", "tasks"]
+    },
+    "MapConnection": {
+      "title": "MapConnection",
+      "description": "A connection between two map points",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "startPointId": { "type": "string" },
+        "endPointId": { "type": "string" },
+        "connectionType": { "type": "string" }
+      },
+      "required": ["id", "startPointId", "endPointId"]
+    },
+    "UserProgress": {
+      "title": "UserProgress",
+      "description": "A user's progress on a task",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "taskSetId": { "type": "string" },
+        "taskNumber": { "type": "number" },
+        "userAnswer": { "type": "string" },
+        "aiFeedback": { "type": "string" },
+        "isCorrect": { "type": "boolean" },
+        "timestamp": { "type": "number" }
+      },
+      "required": ["id", "userId", "taskSetId", "taskNumber", "userAnswer", "isCorrect", "timestamp"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/User" },
+      "description": "User profiles and roles"
+    },
+    "/mapPoints/{pointId}": {
+      "schema": { "$ref": "#/entities/MapPoint" },
+      "description": "Map points"
+    },
+    "/taskSets/{taskSetId}": {
+      "schema": { "$ref": "#/entities/TaskSet" },
+      "description": "Task sets for map points"
+    },
+    "/mapConnections/{connectionId}": {
+      "schema": { "$ref": "#/entities/MapConnection" },
+      "description": "Connections between map points"
+    },
+    "/userProgress/{progressId}": {
+      "schema": { "$ref": "#/entities/UserProgress" },
+      "description": "User progress on tasks"
+    }
+  }
+}
